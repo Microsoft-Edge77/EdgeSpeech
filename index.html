@@ -1,193 +1,81 @@
-// edgeSpeech.js
-// Extension TurboWarp : reconnaissance vocale + affichage HTML stylé
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Edge Speech – Assistant Vocal</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-(function (Scratch) {
-
-  let lastText = "";
-  let recognizer = null;
-  let isListening = false;
-  let silenceTimer = null;
-  let durationTimer = null;
-
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-  // -----------------------------
-  // 1. Création du site HTML
-  // -----------------------------
-  const container = document.createElement("div");
-  container.id = "edgeSpeechDisplay";
-  container.innerHTML = "";
-  document.body.appendChild(container);
-
-  // -----------------------------
-  // 2. CSS du site
-  // -----------------------------
-  const style = document.createElement("style");
-  style.innerHTML = `
-    #edgeSpeechDisplay {
-      position: fixed;
-      bottom: 20px;
-      left: 20px;
-      right: 20px;
-      padding: 20px;
-      background: rgba(0,0,0,0.85);
-      color: #4da3ff;
-      font-family: 'Segoe UI', sans-serif;
-      font-size: 28px;
-      border-radius: 12px;
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity 0.6s ease;
-    }
-    #edgeSpeechDisplay.show {
-      opacity: 1;
-    }
-  `;
-  document.head.appendChild(style);
-
-  // -----------------------------
-  // 3. Affichage du texte reconnu
-  // -----------------------------
-  function displayText(text) {
-    container.textContent = text;
-    container.classList.add("show");
-
-    // Disparition progressive après 2 secondes
-    setTimeout(() => {
-      container.classList.remove("show");
-    }, 2000);
+<style>
+  body {
+    margin: 0;
+    background: #000;
+    font-family: "Segoe UI", sans-serif;
+    color: white;
+    overflow: hidden;
   }
 
-  // -----------------------------
-  // 4. Reconnaissance vocale
-  // -----------------------------
-  function stopListeningInternal() {
-    if (recognizer && isListening) {
-      try { recognizer.stop(); } catch (e) {}
-    }
-    isListening = false;
-    console.log("[EdgeSpeech] Écoute désactivée.");
+  /* Logo Windows 11 */
+  #logo {
+    position: fixed;
+    top: 40px;
+    left: 40px;
+    width: 120px;
+    opacity: 0.8;
+    filter: drop-shadow(0 0 20px #4da3ff);
   }
 
-  function startListening() {
-    if (!SpeechRecognition) {
-      console.warn("[EdgeSpeech] Web Speech API non disponible.");
-      return;
-    }
-
-    if (isListening) return;
-
-    recognizer = new SpeechRecognition();
-    recognizer.lang = "fr-FR";
-    recognizer.continuous = true;
-    recognizer.interimResults = false;
-
-    recognizer.onresult = (event) => {
-      const result = event.results[event.results.length - 1][0].transcript;
-      lastText = String(result).trim().toLowerCase();
-      console.log("[EdgeSpeech] Texte reconnu :", lastText);
-
-      displayText(lastText);
-
-      if (silenceTimer) clearTimeout(silenceTimer);
-      silenceTimer = setTimeout(() => {
-        stopListeningInternal();
-      }, 1000);
-    };
-
-    recognizer.onspeechend = () => {
-      if (silenceTimer) clearTimeout(silenceTimer);
-      silenceTimer = setTimeout(() => {
-        stopListeningInternal();
-      }, 1000);
-    };
-
-    recognizer.onerror = (event) => {
-      console.warn("[EdgeSpeech] Erreur reco vocale :", event.error);
-    };
-
-    recognizer.onend = () => {
-      if (isListening) {
-        try { recognizer.start(); } catch (e) {}
-      }
-    };
-
-    try {
-      recognizer.start();
-      isListening = true;
-      console.log("[EdgeSpeech] Écoute activée.");
-    } catch (e) {
-      console.warn("[EdgeSpeech] Impossible de démarrer :", e);
-    }
+  /* Zone d'affichage du texte */
+  #speechBox {
+    position: fixed;
+    bottom: 40px;
+    left: 40px;
+    right: 40px;
+    padding: 25px;
+    background: rgba(0, 0, 0, 0.65);
+    border: 2px solid #4da3ff;
+    border-radius: 14px;
+    color: #4da3ff;
+    font-size: 32px;
+    opacity: 0;
+    transition: opacity 0.6s ease;
+    pointer-events: none;
   }
 
-  function startListeningForDuration(seconds) {
-    startListening();
-
-    if (durationTimer) clearTimeout(durationTimer);
-
-    durationTimer = setTimeout(() => {
-      stopListeningInternal();
-    }, seconds * 1000);
+  #speechBox.show {
+    opacity: 1;
   }
 
-  // -----------------------------
-  // 5. Blocs Scratch
-  // -----------------------------
-  const extension = {
-    getInfo() {
-      return {
-        id: "edgeSpeech",
-        name: "Edge Speech",
-        blocks: [
-          {
-            opcode: "start",
-            blockType: Scratch.BlockType.COMMAND,
-            text: "activer l'écoute"
-          },
-          {
-            opcode: "startDuration",
-            blockType: Scratch.BlockType.COMMAND,
-            text: "activer l'écoute pendant [sec] secondes",
-            arguments: {
-              sec: {
-                type: Scratch.ArgumentType.NUMBER,
-                defaultValue: 3
-              }
-            }
-          },
-          {
-            opcode: "stop",
-            blockType: Scratch.BlockType.COMMAND,
-            text: "désactiver l'écoute"
-          },
-          {
-            opcode: "getPhrase",
-            blockType: Scratch.BlockType.REPORTER,
-            text: "phrase reconnue"
-          }
-        ]
-      };
-    },
+  /* Bouton de test */
+  #testBtn {
+    position: fixed;
+    top: 200px;
+    left: 40px;
+    padding: 12px 20px;
+    background: #4da3ff;
+    border: none;
+    border-radius: 8px;
+    font-size: 18px;
+    cursor: pointer;
+    color: black;
+    font-weight: bold;
+    transition: 0.2s;
+  }
 
-    start() {
-      startListening();
-    },
+  #testBtn:hover {
+    background: #74b7ff;
+  }
+</style>
+</head>
 
-    startDuration(args) {
-      const sec = Number(args.sec);
-      startListeningForDuration(sec);
-    },
+<body>
 
-    stop() {
-      stopListeningInternal();
-    },
+<img id="logo" src="https://upload.wikimedia.org/wikipedia/commons/8/8f/Windows_11_logo.svg">
 
-    getPhrase() {
-      return lastText;
-    }
-  };
+<div id="speechBox"></div>
 
-  Scratch.extensions.register(extension);
+<button id="testBtn" onclick="startListening()">Tester l'écoute</button>
 
-})(Scratch);
+<script src="edgeSpeech.js"></script>
+
+</body>
+</html>

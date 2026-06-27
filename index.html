@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Edge Speech – Assistant Vocal</title>
+<title>EdgeSpeech – Assistant Vocal</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
@@ -14,17 +14,6 @@
     overflow: hidden;
   }
 
-  /* Logo Windows 11 */
-  #logo {
-    position: fixed;
-    top: 40px;
-    left: 40px;
-    width: 120px;
-    opacity: 0.8;
-    filter: drop-shadow(0 0 20px #4da3ff);
-  }
-
-  /* Zone d'affichage du texte */
   #speechBox {
     position: fixed;
     bottom: 40px;
@@ -44,36 +33,12 @@
   #speechBox.show {
     opacity: 1;
   }
-
-  /* Bouton de test */
-  #testBtn {
-    position: fixed;
-    top: 200px;
-    left: 40px;
-    padding: 12px 20px;
-    background: #4da3ff;
-    border: none;
-    border-radius: 8px;
-    font-size: 18px;
-    cursor: pointer;
-    color: black;
-    font-weight: bold;
-    transition: 0.2s;
-  }
-
-  #testBtn:hover {
-    background: #74b7ff;
-  }
 </style>
 </head>
 
 <body>
 
-<img id="logo" src="https://upload.wikimedia.org/wikipedia/commons/8/8f/Windows_11_logo.svg">
-
 <div id="speechBox"></div>
-
-<button id="testBtn" onclick="startListening()">Tester l'écoute</button>
 
 <script src="edgeSpeech.js"></script>
 

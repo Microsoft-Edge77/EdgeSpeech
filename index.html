@@ -1,14 +1,73 @@
 // edgeSpeech.js
-// Extension TurboWarp : reconnaissance vocale pour Edge (Web Speech API)
+// Extension TurboWarp : reconnaissance vocale + affichage HTML stylé
 
 (function (Scratch) {
 
   let lastText = "";
   let recognizer = null;
   let isListening = false;
+  let silenceTimer = null;
+  let durationTimer = null;
 
-  // Vérifier la présence de l’API Web Speech
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  // -----------------------------
+  // 1. Création du site HTML
+  // -----------------------------
+  const container = document.createElement("div");
+  container.id = "edgeSpeechDisplay";
+  container.innerHTML = "";
+  document.body.appendChild(container);
+
+  // -----------------------------
+  // 2. CSS du site
+  // -----------------------------
+  const style = document.createElement("style");
+  style.innerHTML = `
+    #edgeSpeechDisplay {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      right: 20px;
+      padding: 20px;
+      background: rgba(0,0,0,0.85);
+      color: #4da3ff;
+      font-family: 'Segoe UI', sans-serif;
+      font-size: 28px;
+      border-radius: 12px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.6s ease;
+    }
+    #edgeSpeechDisplay.show {
+      opacity: 1;
+    }
+  `;
+  document.head.appendChild(style);
+
+  // -----------------------------
+  // 3. Affichage du texte reconnu
+  // -----------------------------
+  function displayText(text) {
+    container.textContent = text;
+    container.classList.add("show");
+
+    // Disparition progressive après 2 secondes
+    setTimeout(() => {
+      container.classList.remove("show");
+    }, 2000);
+  }
+
+  // -----------------------------
+  // 4. Reconnaissance vocale
+  // -----------------------------
+  function stopListeningInternal() {
+    if (recognizer && isListening) {
+      try { recognizer.stop(); } catch (e) {}
+    }
+    isListening = false;
+    console.log("[EdgeSpeech] Écoute désactivée.");
+  }
 
   function startListening() {
     if (!SpeechRecognition) {
@@ -27,6 +86,20 @@
       const result = event.results[event.results.length - 1][0].transcript;
       lastText = String(result).trim().toLowerCase();
       console.log("[EdgeSpeech] Texte reconnu :", lastText);
+
+      displayText(lastText);
+
+      if (silenceTimer) clearTimeout(silenceTimer);
+      silenceTimer = setTimeout(() => {
+        stopListeningInternal();
+      }, 1000);
+    };
+
+    recognizer.onspeechend = () => {
+      if (silenceTimer) clearTimeout(silenceTimer);
+      silenceTimer = setTimeout(() => {
+        stopListeningInternal();
+      }, 1000);
     };
 
     recognizer.onerror = (event) => {
@@ -35,11 +108,7 @@
 
     recognizer.onend = () => {
       if (isListening) {
-        try {
-          recognizer.start();
-        } catch (e) {
-          console.warn("[EdgeSpeech] Impossible de relancer :", e);
-        }
+        try { recognizer.start(); } catch (e) {}
       }
     };
 
@@ -52,18 +121,19 @@
     }
   }
 
-  function stopListening() {
-    if (recognizer && isListening) {
-      try {
-        recognizer.stop();
-      } catch (e) {
-        console.warn("[EdgeSpeech] Impossible d'arrêter :", e);
-      }
-    }
-    isListening = false;
-    console.log("[EdgeSpeech] Écoute désactivée.");
+  function startListeningForDuration(seconds) {
+    startListening();
+
+    if (durationTimer) clearTimeout(durationTimer);
+
+    durationTimer = setTimeout(() => {
+      stopListeningInternal();
+    }, seconds * 1000);
   }
 
+  // -----------------------------
+  // 5. Blocs Scratch
+  // -----------------------------
   const extension = {
     getInfo() {
       return {
@@ -76,6 +146,17 @@
             text: "activer l'écoute"
           },
           {
+            opcode: "startDuration",
+            blockType: Scratch.BlockType.COMMAND,
+            text: "activer l'écoute pendant [sec] secondes",
+            arguments: {
+              sec: {
+                type: Scratch.ArgumentType.NUMBER,
+                defaultValue: 3
+              }
+            }
+          },
+          {
             opcode: "stop",
             blockType: Scratch.BlockType.COMMAND,
             text: "désactiver l'écoute"
@@ -84,17 +165,6 @@
             opcode: "getPhrase",
             blockType: Scratch.BlockType.REPORTER,
             text: "phrase reconnue"
-          },
-          {
-            opcode: "isWord",
-            blockType: Scratch.BlockType.BOOLEAN,
-            text: "mot reconnu = [mot]",
-            arguments: {
-              mot: {
-                type: Scratch.ArgumentType.STRING,
-                defaultValue: "microsoft"
-              }
-            }
           }
         ]
       };
@@ -104,17 +174,17 @@
       startListening();
     },
 
+    startDuration(args) {
+      const sec = Number(args.sec);
+      startListeningForDuration(sec);
+    },
+
     stop() {
-      stopListening();
+      stopListeningInternal();
     },
 
     getPhrase() {
       return lastText;
-    },
-
-    isWord(args) {
-      const target = String(args.mot).trim().toLowerCase();
-      return lastText === target;
     }
   };
 
